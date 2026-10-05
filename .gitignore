@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Proyecto fraud-detection ---
+.venv/
+.env
+data/raw/*
+data/processed/*
+models/*.pkl
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
