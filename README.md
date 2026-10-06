@@ -45,3 +45,12 @@ EDA sobre `data/processed/creditcard_clean.csv` (283,726 transacciones, 31 colum
 - **Implicación de modelado:** evaluar con precision/recall/PR-AUC, considerar class weights y balanceo solo en train (evitar leakage).
 
 Ver `notebooks/01_eda.ipynb` para el análisis completo.
+
+## Modelado (`notebooks/03_modeling.ipynb`)
+
+- Split estratificado 70/30 (seed 42) sobre `creditcard_features.csv`.
+- Comparación de 3 modelos (LogisticRegression, RandomForest, XGBoost) × 2 estrategias (class_weight='balanced' y SMOTE solo en train).
+- **Ganador: XGBoost con SMOTE** — Precision 0.875, Recall 0.789, F1 0.830, ROC-AUC 0.963, PR-AUC 0.823.
+- Matriz de confusión del ganador: [[84960, 16], [30, 112]].
+- Features más importantes: V14, V4, V12, V17, V10.
+- Modelo persistido en `models/best_model.pkl` (no versionado, ignorado por .gitignore).
