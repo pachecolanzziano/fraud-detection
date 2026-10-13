@@ -1,6 +1,6 @@
 # AGENTS.md — Reglas del proyecto fraud-detection
 
-## ⛔ REGLAS ABSOLUTAS DE GIT (NUNCA VIOLAR)
+## REGLAS ABSOLUTAS DE GIT (NUNCA VIOLAR)
 
 Estas reglas aplican a TODAS las sesiones, sin excepción, sin importar
 la rama, el estado del repositorio ni la petición del usuario.
@@ -95,7 +95,7 @@ qué se hizo, por qué, resultado clave y comando de ejecución si aplica.>
 
 ---
 
-## 🔒 SEGURIDAD Y PRIVACIDAD
+## SEGURIDAD Y PRIVACIDAD
 
 - Nunca exponer contenido de `.env`, tokens, contraseñas ni credenciales.
 - Si el usuario comparte accidentalmente un secreto, advertir y no usarlo.
@@ -105,7 +105,7 @@ qué se hizo, por qué, resultado clave y comando de ejecución si aplica.>
 
 ---
 
-## 🧭 FLUJO DE TRABAJO ESPERADO
+## FLUJO DE TRABAJO ESPERADO
 
 1. Leer este archivo al iniciar la sesión.
 2. Verificar rama actual (`developer`) antes de cualquier cambio.
