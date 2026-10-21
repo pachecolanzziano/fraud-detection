@@ -15,13 +15,15 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import List
 
+from src.features.build_features import FEATURE_ORDER, build_features
+
 logger = logging.getLogger(__name__)
 
 MODEL_PATH = os.getenv("MODEL_PATH", "models/best_model.pkl")
 FRAUD_THRESHOLD = float(os.getenv("FRAUD_THRESHOLD", "0.5"))
 API_VERSION = os.getenv("API_VERSION", "0.1.0")
 
-FEATURES = ["Time"] + [f"V{i}" for i in range(1, 29)] + ["Amount"]
+FEATURES = FEATURE_ORDER
 
 
 class TransactionInput(BaseModel):
@@ -118,12 +120,30 @@ app = FastAPI(
 
 
 def _predict_one(transaction: TransactionInput) -> PredictionOutput:
-    """Genera la predicción de una transacción usando el modelo cargado."""
+    """Genera la predicción de una transacción usando el modelo cargado.
+
+    Recibe las 30 features crudas, aplica `build_features` para obtener
+    hour, log_amount y V_sum, y reordena según el contrato del modelo
+    (`feature_names_in_` si existe; si no, `FEATURE_ORDER`).
+    """
     model = app.state.model
     if model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
 
-    X = pd.DataFrame([transaction.model_dump()], columns=FEATURES)
+    payload = (
+        transaction.model_dump()
+        if hasattr(transaction, "model_dump")
+        else transaction.dict()
+    )
+    raw = pd.DataFrame([payload], columns=["Time"] + [f"V{i}" for i in range(1, 29)] + ["Amount"])
+    features = build_features(raw)
+
+    feature_names = getattr(model, "feature_names_in_", None)
+    if feature_names is not None:
+        X = features[list(feature_names)]
+    else:
+        X = features[FEATURES]
+
     proba = float(model.predict_proba(X)[:, 1][0])
     return PredictionOutput(
         is_fraud=proba >= FRAUD_THRESHOLD,

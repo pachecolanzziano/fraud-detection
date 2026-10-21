@@ -50,7 +50,7 @@ ANALIS EXPLORATORIO del dataset limpio `creditcard_clean.csv` (283,726 transacci
 - Desbalanceo extremo: ~99.83% no fraude vs ~0.17% fraude (ratio ~599:1).
 - `Amount` difiere entre clase fraude (mediana $9.82) y legítima (mediana $22.00); Amount por sí solo no discrimina.
 - Mayor incidencia de fraude en ciertas ventanas temporales y horas del día.
-- V17, V14, V12, V10 y V16 son las componentes PCA con mayor separación entre clases.
+- V1, V3, V4, V14 y V17 son las componentes PCA con mayor separación entre clases.
 - Outliers relevantes (Amount: 31,685 por IQR) que, en fraude, pueden ser señal informativa, no ruido a eliminar.
 - Correlaciones más altas con `Class`: V17 (−0.31), V14 (−0.29), V12 (−0.25), V10 (−0.21).
 
@@ -74,6 +74,13 @@ Parte del dataset limpio para crear features nuevas que mejoren la capacidad pre
 
 **Restricciones respetadas:** no se balancearon clases, no se escaló, no se entrenaron modelos, la columna `Class` permanece intacta, no hubo data leakage. El CSV resultante conserva las mismas filas (283,726) y pasa de 31 a 34 columnas.
 
+**Justificación de retención de features:**
+- `Time` + `hour`: se conservan ambas. `Time` captura la posición absoluta en la ventana de 2 días del dataset; `hour` captura el ciclo diario. Son complementarias.
+- `Amount` + `log_amount`: se conservan ambas. `log_amount` reduce el sesgo de la distribución y beneficia modelos lineales; `Amount` conserva la escala original y beneficia modelos de árboles.
+- Se conservan las 28 V originales: el EDA mostró que V14, V17, V12 y V10 aportan señal.
+
+**Feature engineering compartido:** la lógica de `hour`, `log_amount` y `V_sum` está centralizada en `src/features/build_features.py`, que usan tanto el entrenamiento como la API. Expone `build_features(df)` y `FEATURE_ORDER` (33 columnas: Time, V1..V28, Amount, hour, log_amount, V_sum).
+
 ## Resumen ejecutivo del EDA
 
 EDA sobre `data/processed/creditcard_clean.csv` (283,726 transacciones, 31 columnas, 0 nulos):
@@ -81,7 +88,7 @@ EDA sobre `data/processed/creditcard_clean.csv` (283,726 transacciones, 31 colum
 - **Desbalanceo severo:** Class=0 (legítimo) 283,253 → 99.83%; Class=1 (fraude) 473 → 0.17% (ratio ~599:1).
 - **Montos:** las transacciones fraudulentas exhiben mediana ($9.82) y colas distintas a las legítimas ($22.00); Amount por sí solo no discrimina.
 - **Tiempo:** la incidencia de fraude varía por ventana temporal y hora del día.
-- **PCA:** V17, V14, V12 y V10 muestran mayor separación entre clases.
+- **PCA:** V1, V3, V4, V14 y V17 son las componentes con mayor separación entre clases.
 - **Outliers:** presentes en Amount y varias V; informativos, no eliminar sin análisis.
 - **Implicación de modelado:** evaluar con precision/recall/PR-AUC, considerar class weights y balanceo solo en train (evitar leakage).
 
@@ -95,3 +102,18 @@ Ver `notebooks/01_eda.ipynb` para el análisis completo.
 - Matriz de confusión del ganador: [[84960, 16], [30, 112]].
 - Features más importantes: V14, V4, V12, V17, V10.
 - Modelo persistido en `models/best_model.pkl` (no versionado, ignorado por .gitignore).
+
+### Limitaciones del modelo
+
+- **Umbral 0.5 sin optimizar:** un umbral más bajo (0.2-0.3) aumentaría el recall a costa de más falsos positivos; el óptimo depende del costo de FN vs FP.
+- **Sin validación cruzada:** un único split 70/30 puede dar métricas optimistas o pesimistas; una CV estratificada daría intervalos de confianza.
+- **Alta dependencia de V14:** concentra ~66.8% del peso del XGBoost; un cambio de distribución en producción podría degradarlo silenciosamente.
+- **Features PCA no interpretables:** V1..V28 no aportan narrativa de negocio.
+- **Sin tuning de hiperparámetros:** hay margen de mejora en PR-AUC.
+
+### Contrato API ↔ modelo
+
+- La API recibe **30 features crudas** (`Time`, `V1..V28`, `Amount`).
+- Aplica `src.features.build_features.build_features()` para generar `hour`, `log_amount` y `V_sum`.
+- Reordena al orden de entrenamiento usando `feature_names_in_` del modelo (fallback: `FEATURE_ORDER`, 33 features).
+- Esto mantiene compatibilidad tanto con el modelo mock de 30 features como con el modelo formal de 33 features, sin reentrenar.
