@@ -222,7 +222,10 @@ __marimo__/
 .env
 data/raw/*
 data/processed/*
+# Artefactos de modelo: excluidos por tamaño y privacidad.
+# Se regeneran localmente con notebooks/03_modeling.ipynb o src/models/train.py.
 models/*.pkl
+models/*.joblib
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
