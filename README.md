@@ -27,6 +27,19 @@ fraud-detection/
 2. Activarlo: `.\.venv\Scripts\Activate.ps1`
 3. Instalar dependencias: `pip install -r requirements.txt`
 
+## Estado del proyecto
+
+| Fase | Estado | Entregable |
+|---|---|---|
+| Setup y estructura | ✅ | `requirements.txt`, `.gitignore`, PR #1 |
+| ETL | ✅ | `src/data/load_data.py`, `src/data/preprocess.py` |
+| EDA | ✅ | `notebooks/01_eda.ipynb` |
+| Feature engineering | ✅ | `src/features/build_features.py`, `creditcard_features.csv` |
+| Modelado | ✅ | `notebooks/03_modeling.ipynb` (XGBoost + SMOTE) |
+| API | ✅ | `src/api/main.py` (`/health`, `/predict`, `/predict/batch`) |
+| Dashboard | ✅ | `src/dashboard/app.py` (Streamlit) |
+| Docker | ⏳ | Pendiente |
+
 ## Uso
 
 ```bash
@@ -50,6 +63,10 @@ Luego abrir `http://localhost:8501`. El dashboard:
 
 El dashboard aplica el mismo contrato que la API: recibe 30 features crudas, ejecuta
 `src/features/build_features.py` y reordena según `feature_names_in_` del modelo.
+
+**Verificación:** `AppTest` ejecutó la app sin excepciones (3 pestañas, 30 inputs, modelo
+`XGBClassifier` cargado). Con una transacción de fraude real del dataset la probabilidad
+fue 99.9983%, y un lote de prueba (1 fraude + 1 normal) detectó correctamente 1 de 2.
 
 > Requiere el modelo entrenado localmente. Si no existe, ejecuta `notebooks/03_modeling.ipynb`;
 > `models/*.pkl` está excluido de Git por tamaño y privacidad.
