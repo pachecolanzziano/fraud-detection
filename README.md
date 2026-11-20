@@ -33,6 +33,27 @@ fraud-detection/
 python src/data/load_data.py
 ```
 
+## Dashboard (`src/dashboard/app.py`)
+
+Dashboard interactivo en Streamlit para explorar el modelo y puntuar transacciones.
+
+```bash
+streamlit run src/dashboard/app.py --server.port 8501
+```
+
+Luego abrir `http://localhost:8501`. El dashboard:
+
+- Carga `models/best_model.pkl` (XGBoost + SMOTE, 33 features) y muestra su tipo y contrato de features.
+- Pestaña **Transacción individual**: formulario con `Time`, `V1`…`V28` y `Amount`; devuelve `fraud_probability`, la decisión `is_fraud` y una barra de probabilidad.
+- Pestaña **Lote (CSV)**: sube un CSV con las 30 columnas crudas (máx. 1000 filas), muestra métricas del lote, tabla de resultados y botón de descarga.
+- Permite ajustar el **umbral de decisión** (por defecto 0.5) desde la barra lateral.
+
+El dashboard aplica el mismo contrato que la API: recibe 30 features crudas, ejecuta
+`src/features/build_features.py` y reordena según `feature_names_in_` del modelo.
+
+> Requiere el modelo entrenado localmente. Si no existe, ejecuta `notebooks/03_modeling.ipynb`;
+> `models/*.pkl` está excluido de Git por tamaño y privacidad.
+
 ## EDA (`notebooks/01_eda.ipynb`)
 
 ANALIS EXPLORATORIO del dataset limpio `creditcard_clean.csv` (283,726 transacciones × 31 columnas, 0 nulos), en 26 celdas, con visualizaciones y hallazgos escritos en markdown.
