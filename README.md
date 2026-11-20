@@ -27,11 +27,49 @@ fraud-detection/
 2. Activarlo: `.\.venv\Scripts\Activate.ps1`
 3. Instalar dependencias: `pip install -r requirements.txt`
 
+## Estado del proyecto
+
+| Fase | Estado | Entregable |
+|---|---|---|
+| Setup y estructura | ✅ | `requirements.txt`, `.gitignore`, PR #1 |
+| ETL | ✅ | `src/data/load_data.py`, `src/data/preprocess.py` |
+| EDA | ✅ | `notebooks/01_eda.ipynb` |
+| Feature engineering | ✅ | `src/features/build_features.py`, `creditcard_features.csv` |
+| Modelado | ✅ | `notebooks/03_modeling.ipynb` (XGBoost + SMOTE) |
+| API | ✅ | `src/api/main.py` (`/health`, `/predict`, `/predict/batch`) |
+| Dashboard | ✅ | `src/dashboard/app.py` (Streamlit) |
+| Docker | ⏳ | Pendiente |
+
 ## Uso
 
 ```bash
 python src/data/load_data.py
 ```
+
+## Dashboard (`src/dashboard/app.py`)
+
+Dashboard interactivo en Streamlit para explorar el modelo y puntuar transacciones.
+
+```bash
+streamlit run src/dashboard/app.py --server.port 8501
+```
+
+Luego abrir `http://localhost:8501`. El dashboard:
+
+- Carga `models/best_model.pkl` (XGBoost + SMOTE, 33 features) y muestra su tipo y contrato de features.
+- Pestaña **Transacción individual**: formulario con `Time`, `V1`…`V28` y `Amount`; devuelve `fraud_probability`, la decisión `is_fraud` y una barra de probabilidad.
+- Pestaña **Lote (CSV)**: sube un CSV con las 30 columnas crudas (máx. 1000 filas), muestra métricas del lote, tabla de resultados y botón de descarga.
+- Permite ajustar el **umbral de decisión** (por defecto 0.5) desde la barra lateral.
+
+El dashboard aplica el mismo contrato que la API: recibe 30 features crudas, ejecuta
+`src/features/build_features.py` y reordena según `feature_names_in_` del modelo.
+
+**Verificación:** `AppTest` ejecutó la app sin excepciones (3 pestañas, 30 inputs, modelo
+`XGBClassifier` cargado). Con una transacción de fraude real del dataset la probabilidad
+fue 99.9983%, y un lote de prueba (1 fraude + 1 normal) detectó correctamente 1 de 2.
+
+> Requiere el modelo entrenado localmente. Si no existe, ejecuta `notebooks/03_modeling.ipynb`;
+> `models/*.pkl` está excluido de Git por tamaño y privacidad.
 
 ## EDA (`notebooks/01_eda.ipynb`)
 
@@ -117,3 +155,48 @@ Ver `notebooks/01_eda.ipynb` para el análisis completo.
 - Aplica `src.features.build_features.build_features()` para generar `hour`, `log_amount` y `V_sum`.
 - Reordena al orden de entrenamiento usando `feature_names_in_` del modelo (fallback: `FEATURE_ORDER`, 33 features).
 - Esto mantiene compatibilidad tanto con el modelo mock de 30 features como con el modelo formal de 33 features, sin reentrenar.
+
+### Solución de problemas: 404 en `/predict` y `/predict/batch`
+
+**Las rutas correctas no llevan prefijo `/api`:**
+
+| Endpoint | Método | URL correcta | URL incorrecta (404) |
+|---|---|---|---|
+| Predicción individual | POST | `/predict` | `/api/predict` |
+| Predicción en lote | POST | `/predict/batch` | `/api/predict/batch` |
+| Salud | GET | `/health` | — |
+| Swagger | GET | `/docs` | — |
+
+**Checklist de verificación:**
+
+1. Arrancar el servidor **desde la raíz del repo** y con el venv:
+   ```powershell
+   .\.venv\Scripts\Activate.ps1
+   uvicorn src.api.main:app --host 127.0.0.1 --port 8000
+   ```
+2. Confirmar que el puerto es el mismo que usas en la URL (8000). Si el puerto está ocupado, uvicorn falla o usa otro.
+3. Confirmar que el proceso quedó corriendo: `GET http://127.0.0.1:8000/health` debe responder 200.
+4. Confirmar las rutas publicadas: `GET http://127.0.0.1:8000/openapi.json` debe listar `/predict` y `/predict/batch`.
+5. Usar **POST** y `Content-Type: application/json`. `GET /predict` devuelve **405** (no 404), y un `POST` a una ruta inexistente devuelve 404.
+6. Si cambiaste código, reinicia uvicorn (sin `--reload` no toma cambios automáticamente).
+
+**Prueba rápida (PowerShell):**
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/health" -Method Get
+```
+
+**Prueba de `/predict` (curl):**
+```bash
+curl -X POST "http://127.0.0.1:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{"Time":0.0,"V1":-1.359807,"V2":-0.072781,"V3":2.536347,"V4":1.378155,"V5":-0.338321,"V6":0.462388,"V7":0.239599,"V8":0.098698,"V9":0.363787,"V10":0.090794,"V11":-0.5516,"V12":-0.617801,"V13":-0.99139,"V14":-0.311169,"V15":1.468177,"V16":-0.470401,"V17":0.207971,"V18":0.025791,"V19":0.403993,"V20":0.251412,"V21":-0.018307,"V22":0.277838,"V23":-0.110474,"V24":0.066928,"V25":0.128539,"V26":-0.189115,"V27":0.133558,"V28":-0.021053,"Amount":149.62}'
+```
+
+**Prueba de `/predict/batch` (curl):**
+```bash
+curl -X POST "http://127.0.0.1:8000/predict/batch" \
+  -H "Content-Type: application/json" \
+  -d '{"transactions":[{"Time":0.0,"V1":-1.359807,"V2":-0.072781,"V3":2.536347,"V4":1.378155,"V5":-0.338321,"V6":0.462388,"V7":0.239599,"V8":0.098698,"V9":0.363787,"V10":0.090794,"V11":-0.5516,"V12":-0.617801,"V13":-0.99139,"V14":-0.311169,"V15":1.468177,"V16":-0.470401,"V17":0.207971,"V18":0.025791,"V19":0.403993,"V20":0.251412,"V21":-0.018307,"V22":0.277838,"V23":-0.110474,"V24":0.066928,"V25":0.128539,"V26":-0.189115,"V27":0.133558,"V28":-0.021053,"Amount":149.62}]}'
+```
+
+> Diagnóstico verificado el 2026-10-20: `/predict` y `/predict/batch` responden 200 con el modelo formal; `/api/predict` responde 404 porque la API no usa prefijo.
